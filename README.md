@@ -64,6 +64,12 @@ make            # builds canvas-cairo.so
 make test       # runs the ERT suite
 ```
 
+`make` takes `emacs-module.h` from the Emacs that it runs, which is
+`emacs` on your path. If that is not your Emacs 32, name the right one:
+`make EMACS=/path/to/emacs`. A symbolic link to the binary works too.
+If the header is in an unusual place, name its directory:
+`make EMACS_INCLUDE=/directory`.
+
 Then put the directory on the load path; the packages built on this
 each say how they want to be loaded alongside it.
 

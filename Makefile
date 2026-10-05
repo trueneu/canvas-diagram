@@ -44,7 +44,31 @@ PKG_CFLAGS += -DHAVE_PIXBUF $(shell pkg-config --cflags gdk-pixbuf-2.0)
 PKG_LIBS   += $(shell pkg-config --libs gdk-pixbuf-2.0)
 endif
 
-INCLUDES    = -I/usr/local/include $(PKG_CFLAGS)
+# The directory of emacs-module.h.
+#
+# The header must be the one of the Emacs that loads the module, so
+# $(EMACS) is asked where its own binary is.  The header is then in one
+# of two places:
+#   ../include next to the binary, for an installed Emacs
+#   the directory of the binary, for an Emacs run from its build tree
+#
+# To use another header: make EMACS_INCLUDE=/some/directory
+#
+# The compiler gets the header by its full name, with -include, and not
+# a directory to search, with -I.  It ignores -I for a system directory
+# such as /usr/include, and would then take a header of the same name
+# from /usr/local/include first.
+EMACS_INCLUDE ?= $(shell $(EMACS) -Q --batch --eval '\
+  (let* ((binary (file-truename \
+                  (expand-file-name invocation-name invocation-directory))) \
+         (here (file-name-directory binary)) \
+         (places (list (expand-file-name "../include" here) here))) \
+    (princ (or (seq-find (lambda (place) \
+                           (file-exists-p (expand-file-name "emacs-module.h" place))) \
+                         places) \
+               "")))')
+
+INCLUDES    = -include $(EMACS_INCLUDE)/emacs-module.h $(PKG_CFLAGS)
 LIBS        = $(PKG_LIBS)
 
 .PHONY: all clean test deps-local
@@ -52,6 +76,9 @@ LIBS        = $(PKG_LIBS)
 all: $(MODULE)
 
 $(MODULE): $(SRC)
+	@test -f "$(EMACS_INCLUDE)/emacs-module.h" || { \
+	  echo "No emacs-module.h found for $(EMACS).  Name its directory: make EMACS_INCLUDE=DIR" >&2; \
+	  exit 1; }
 	$(CC) $(CFLAGS) $(INCLUDES) -shared -o $@ $< $(LIBS)
 
 test: $(MODULE)
